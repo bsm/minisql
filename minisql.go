@@ -26,14 +26,15 @@ type RowQuerier interface {
 
 // Query builder.
 type Query struct {
-	pfmt PlaceholderFormat
-	stmt []byte
-	args []interface{}
+	Placeholder PlaceholderFormat
+	stmt        []byte
+	args        []interface{}
 }
 
 // UsePlaceholder set a custom placeholder format.
-func (q *Query) UsePlaceholder(f PlaceholderFormat) {
-	q.pfmt = f
+func (q *Query) UsePlaceholder(f PlaceholderFormat) *Query {
+	q.Placeholder = f
+	return q
 }
 
 // Reset resets the query.
@@ -88,7 +89,7 @@ func (q *Query) AppendValue(value interface{}) {
 }
 
 func (q *Query) appendPlacholder() {
-	switch q.pfmt {
+	switch q.Placeholder {
 	case Question:
 		q.AppendByte('?')
 	case Colon:
