@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
+	"unsafe"
 )
 
 // Execer interface, may apply to an sql.DB or an sql.Tx.
@@ -59,7 +60,7 @@ func (q *Query) QueryRowContext(ctx context.Context, target RowQuerier) *sql.Row
 
 // SQL exposes the raw SQL.
 func (q *Query) SQL() string {
-	return string(q.stmt)
+	return *(*string)(unsafe.Pointer(&q.stmt))
 }
 
 // Args exposes the collected arguments.
