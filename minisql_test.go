@@ -1,36 +1,36 @@
 package minisql_test
 
 import (
+	"reflect"
 	"testing"
 
-	"github.com/bsm/minisql"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	. "github.com/bsm/minisql"
 )
 
-var _ = Describe("Query", func() {
-	It("should pool", func() {
-		q1 := minisql.Pooled()
-		q2 := minisql.Pooled()
-		Expect(q2).ToNot(BeIdenticalTo(q1))
+func TestPooled(t *testing.T) {
+	q1 := Pooled()
+	q2 := Pooled()
+	if q1 == q2 {
+		t.Fatal("expected different")
+	}
 
-		minisql.Release(q1)
-		q3 := minisql.Pooled()
-		Expect(q3).To(BeIdenticalTo(q1))
-	})
+	Release(q1)
+	if q3 := Pooled(); q1 != q3 {
+		t.Fatal("expected same")
+	}
+}
 
-	It("should generate query", func() {
-		q := new(minisql.Query)
-		q.AppendString(`SELECT user.name FROM users WHERE id > `)
-		q.AppendValue(33)
-		q.AppendString(` LIMIT `)
-		q.AppendInt(100)
-		Expect(q.SQL()).To(Equal(`SELECT user.name FROM users WHERE id > $1 LIMIT 100`))
-		Expect(q.Args()).To(Equal([]interface{}{33}))
-	})
-})
+func TestQuery(t *testing.T) {
+	q := new(Query)
+	q.AppendString(`SELECT user.name FROM users WHERE id > `)
+	q.AppendValue(33)
+	q.AppendString(` LIMIT `)
+	q.AppendInt(100)
 
-func TestSuite(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "minisql")
+	if exp, got := `SELECT user.name FROM users WHERE id > $1 LIMIT 100`, q.SQL(); exp != got {
+		t.Errorf("expected %q, got %q", exp, got)
+	}
+	if exp, got := []interface{}{33}, q.Args(); !reflect.DeepEqual(exp, got) {
+		t.Errorf("expected %v, got %v", exp, got)
+	}
 }

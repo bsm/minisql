@@ -1,7 +1,7 @@
 # MiniSQL
 
-[![GoDoc](https://godoc.org/github.com/bsm/minisql?status.svg)](https://godoc.org/github.com/bsm/minisql)
-[![Build Status](https://travis-ci.org/bsm/minisql.svg)](https://travis-ci.org/bsm/minisql)
+[![Go Reference](https://pkg.go.dev/badge/github.com/bsm/minisql.svg)](https://pkg.go.dev/github.com/bsm/minisql)
+[![Test](https://github.com/bsm/minisql/actions/workflows/test.yml/badge.svg)](https://github.com/bsm/minisql/actions/workflows/test.yml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A minimal SQL query builder for [Go](https://golang.org/).
@@ -24,4 +24,4 @@ func GetUserName(ctx context.Context, db *sql.DB, userID int64) (string, error) 
 
 ## Documentation
 
-Please see the [API documentation](https://godoc.org/github.com/bsm/minisql) for package and API descriptions and examples.
+Please see the [API documentation](https://pkg.go.dev/github.com/bsm/minisql) for package and API descriptions and examples.
