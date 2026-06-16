@@ -30,7 +30,7 @@ func TestQuery(t *testing.T) {
 	if exp, got := `SELECT user.name FROM users WHERE id > $1 LIMIT 100`, q.SQL(); exp != got {
 		t.Errorf("expected %q, got %q", exp, got)
 	}
-	if exp, got := []interface{}{33}, q.Args(); !reflect.DeepEqual(exp, got) {
+	if exp, got := []any{33}, q.Args(); !reflect.DeepEqual(exp, got) {
 		t.Errorf("expected %v, got %v", exp, got)
 	}
 }
