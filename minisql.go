@@ -4,32 +4,31 @@ import (
 	"context"
 	"database/sql"
 	"strconv"
-	"unsafe"
 )
 
 // Execer interface, may apply to an sql.DB or an sql.Tx.
 type Execer interface {
 	// ExecContext executes a query that doesn't return rows. For example: an INSERT and UPDATE.
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
 }
 
 // Querier interface, may apply to an sql.DB or an sql.Tx.
 type Querier interface {
 	// QueryContext executes a query that returns rows, typically a SELECT.
-	QueryContext(context.Context, string, ...interface{}) (*sql.Rows, error)
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
 }
 
 // RowQuerier interface, may apply to an sql.DB or an sql.Tx.
 type RowQuerier interface {
 	// QueryRowContext executes a query that is expected to return at most one row. QueryRowContext always returns a non-nil value. Errors are deferred until Row's Scan method is called. If the query selects no rows, the *Row's Scan will return ErrNoRows. Otherwise, the *Row's Scan scans the first selected row and discards the rest.
-	QueryRowContext(context.Context, string, ...interface{}) *sql.Row
+	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
 // Query builder.
 type Query struct {
 	Placeholder PlaceholderFormat
 	stmt        []byte
-	args        []interface{}
+	args        []any
 }
 
 // UsePlaceholder set a custom placeholder format.
@@ -60,11 +59,11 @@ func (q *Query) QueryRowContext(ctx context.Context, target RowQuerier) *sql.Row
 
 // SQL exposes the raw SQL.
 func (q *Query) SQL() string {
-	return *(*string)(unsafe.Pointer(&q.stmt))
+	return string(q.stmt)
 }
 
 // Args exposes the collected arguments.
-func (q *Query) Args() []interface{} {
+func (q *Query) Args() []any {
 	return q.args
 }
 
@@ -84,7 +83,7 @@ func (q *Query) AppendInt(n int64) {
 }
 
 // AppendValue appends an argument value.
-func (q *Query) AppendValue(value interface{}) {
+func (q *Query) AppendValue(value any) {
 	q.appendPlacholder()
 	q.args = append(q.args, value)
 }
