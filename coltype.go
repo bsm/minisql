@@ -2,6 +2,7 @@ package minisql
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 )
@@ -48,8 +49,10 @@ func (t ColumnType) String() string {
 		return "date"
 	case Timestamp:
 		return "timestamp"
-	default:
+	case String:
 		return "string"
+	default:
+		return "ColumnType(" + strconv.Itoa(int(t)) + ")"
 	}
 }
 
@@ -64,12 +67,15 @@ func (t ColumnType) String() string {
 // Timestamp needs no such care: with its offset it is one fixed instant.
 func (t ColumnType) Parse(s string) (any, error) {
 	switch t {
+	case String:
+		return s, nil
 	case Integer:
 		if n, err := strconv.ParseInt(s, 10, 64); err == nil {
 			return n, nil
 		}
 	case Float:
-		if f, err := strconv.ParseFloat(s, 64); err == nil {
+		// NaN and Infinity are refused, as for Decimal: databases differ.
+		if f, err := strconv.ParseFloat(s, 64); err == nil && !math.IsNaN(f) && !math.IsInf(f, 0) {
 			return f, nil
 		}
 	case Decimal:
@@ -89,9 +95,8 @@ func (t ColumnType) Parse(s string) (any, error) {
 		if ts, err := time.Parse(time.RFC3339Nano, s); err == nil {
 			return ts, nil
 		}
-	default:
-		return s, nil
 	}
+	// An unknown ColumnType fails too, so a bad mapping never skips the check.
 	return nil, fmt.Errorf("minisql: %q is not a valid %s", s, t)
 }
 

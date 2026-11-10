@@ -52,6 +52,8 @@ func (q *Query) UseDialect(d Dialect) *Query {
 // Reset clears the SQL, the arguments and the dialect, but keeps the
 // allocated memory.
 func (q *Query) Reset() {
+	// Drop references to old values, so they can be garbage collected.
+	clear(q.args)
 	*q = Query{stmt: q.stmt[:0], args: q.args[:0]}
 }
 
@@ -98,7 +100,7 @@ func (q *Query) AppendInt(n int64) {
 
 // AppendValue appends an argument value as a placeholder, e.g. $1.
 func (q *Query) AppendValue(value any) {
-	q.appendPlaceholder()
+	q.stmt = q.Dialect.appendPlaceholder(q.stmt, len(q.args)+1)
 	q.args = append(q.args, value)
 }
 
@@ -141,7 +143,8 @@ func (q *Query) AppendParsed(p Parser, values ...string) error {
 //
 // Quote characters inside a part are escaped, so the result is always a
 // single identifier. Note that quoted identifiers are case-sensitive in
-// Postgres, SQLite and Oracle.
+// Postgres, SQLite and Oracle, and that SQLite reads a "name" that matches
+// no column as a string literal, so a typo there gives no error.
 func (q *Query) AppendIdent(parts ...string) {
 	for i, part := range parts {
 		if i > 0 {
@@ -174,17 +177,4 @@ func (q *Query) appendQuoted(name string) {
 		q.AppendByte(name[i])
 	}
 	q.AppendByte(quote)
-}
-
-func (q *Query) appendPlaceholder() {
-	switch q.Dialect {
-	case MySQL, SQLite:
-		q.AppendByte('?')
-	case Oracle:
-		q.AppendByte(':')
-		q.AppendInt(int64(len(q.args)) + 1)
-	default:
-		q.AppendByte('$')
-		q.AppendInt(int64(len(q.args)) + 1)
-	}
 }

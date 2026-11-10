@@ -27,17 +27,17 @@ func TestQuery_dialects(t *testing.T) {
 		dialect Dialect
 		exp     string
 	}{
-		{Postgres, `INSERT INTO "app"."users" ("id", "na""me") VALUES ($1, $2)`},
-		{MySQL, "INSERT INTO `app`.`users` (`id`, `na\"me`) VALUES (?, ?)"},
-		{SQLite, `INSERT INTO "app"."users" ("id", "na""me") VALUES (?, ?)`},
-		{Oracle, `INSERT INTO "app"."users" ("id", "na""me") VALUES (:1, :2)`},
+		{Postgres, "INSERT INTO \"app\".\"users\" (\"id\", \"na\"\"me\", \"na`me\") VALUES ($1, $2)"},
+		{MySQL, "INSERT INTO `app`.`users` (`id`, `na\"me`, `na``me`) VALUES (?, ?)"},
+		{SQLite, "INSERT INTO \"app\".\"users\" (\"id\", \"na\"\"me\", \"na`me\") VALUES (?, ?)"},
+		{Oracle, "INSERT INTO \"app\".\"users\" (\"id\", \"na\"\"me\", \"na`me\") VALUES (:1, :2)"},
 	}
 	for _, tt := range tests {
 		q := new(Query).UseDialect(tt.dialect)
 		q.AppendString(`INSERT INTO `)
 		q.AppendIdent("app", "users")
 		q.AppendString(` (`)
-		q.AppendColumns("id", `na"me`)
+		q.AppendColumns("id", "na\"me", "na`me")
 		q.AppendString(`) VALUES (`)
 		q.AppendValues(1, "x")
 		q.AppendByte(')')
@@ -45,14 +45,6 @@ func TestQuery_dialects(t *testing.T) {
 		if got := q.SQL(); got != tt.exp {
 			t.Errorf("dialect %d: expected %q, got %q", tt.dialect, tt.exp, got)
 		}
-	}
-}
-
-func TestQuery_AppendIdent_escapesMySQL(t *testing.T) {
-	q := new(Query).UseDialect(MySQL)
-	q.AppendIdent("a`b")
-	if exp, got := "`a``b`", q.SQL(); exp != got {
-		t.Errorf("expected %q, got %q", exp, got)
 	}
 }
 

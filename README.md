@@ -24,9 +24,6 @@ func GetUserName(ctx context.Context, db *sql.DB, userID int64) (string, error) 
 }
 ```
 
-Use `query.UseDialect(minisql.MySQL)` for MySQL placeholders and quoting;
-the default is Postgres.
-
 ## Documentation
 
 Please see the [API documentation](https://pkg.go.dev/github.com/bsm/minisql) for package and API descriptions and examples.

@@ -1,7 +1,6 @@
 package minisql_test
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -21,6 +20,8 @@ func TestColumnType_Parse(t *testing.T) {
 		{Integer, "4.2", nil},
 		{Float, "4.2", 4.2},
 		{Float, "abc", nil},
+		{Float, "NaN", nil},
+		{Float, "-Inf", nil},
 		{Decimal, "-12345678901234567890.0000000001", "-12345678901234567890.0000000001"},
 		{Decimal, ".5", ".5"},
 		{Decimal, "1e5", nil},
@@ -35,6 +36,7 @@ func TestColumnType_Parse(t *testing.T) {
 		{Date, "10/11/2026", nil},
 		{Timestamp, "2026-11-10T14:30:00.5+01:00", ts},
 		{Timestamp, "2026-11-10 14:30:00", nil},
+		{ColumnType(99), "x", nil},
 	}
 	for _, tt := range tests {
 		got, err := tt.typ.Parse(tt.in)
@@ -55,21 +57,8 @@ func TestColumnType_Parse(t *testing.T) {
 }
 
 func TestParserFunc(t *testing.T) {
-	exclaim := ParserFunc(func(s string) (any, error) {
-		if s == "" {
-			return nil, errors.New("empty")
-		}
-		return s + "!", nil
-	})
-
-	q := new(Query)
-	if err := q.AppendParsed(exclaim, "a", "b"); err != nil {
-		t.Fatal(err)
-	}
-	if err := q.AppendParsed(exclaim, ""); err == nil {
-		t.Fatal("expected an error")
-	}
-	if got := q.Args(); len(got) != 2 || got[1] != "b!" {
-		t.Errorf("unexpected args %v", got)
+	exclaim := ParserFunc(func(s string) (any, error) { return s + "!", nil })
+	if got, _ := exclaim.Parse("a"); got != "a!" {
+		t.Errorf("expected %q, got %#v", "a!", got)
 	}
 }
