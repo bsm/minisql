@@ -1,3 +1,13 @@
+// Package minisql is a minimal SQL query builder.
+//
+// A Query collects raw SQL and arguments. Values never go into the SQL text:
+// each one is added to the argument list and replaced by a placeholder in
+// the format of the chosen Dialect.
+//
+// The package only handles what differs between databases or is easy to get
+// wrong: placeholders, identifier quoting, list separators and turning text
+// input into typed values. It never writes SQL keywords or clauses; a helper
+// that only saves the caller one AppendString does not belong here.
 package minisql
 
 import (
@@ -24,21 +34,26 @@ type RowQuerier interface {
 	QueryRowContext(context.Context, string, ...any) *sql.Row
 }
 
-// Query builder.
+// Query builder. The zero value is an empty Postgres query.
 type Query struct {
-	Placeholder PlaceholderFormat
-	stmt        []byte
-	args        []any
+	Dialect Dialect
+	stmt    []byte
+	args    []any
 }
 
-// UsePlaceholder set a custom placeholder format.
-func (q *Query) UsePlaceholder(f PlaceholderFormat) *Query {
-	q.Placeholder = f
+// UseDialect sets the dialect and returns the query, so it can be chained:
+//
+//	q := minisql.Pooled().UseDialect(minisql.MySQL)
+func (q *Query) UseDialect(d Dialect) *Query {
+	q.Dialect = d
 	return q
 }
 
-// Reset resets the query.
+// Reset clears the SQL, the arguments and the dialect, but keeps the
+// allocated memory.
 func (q *Query) Reset() {
+	// Drop references to old values, so they can be garbage collected.
+	clear(q.args)
 	*q = Query{stmt: q.stmt[:0], args: q.args[:0]}
 }
 
@@ -67,7 +82,8 @@ func (q *Query) Args() []any {
 	return q.args
 }
 
-// AppendString appends a raw SQL string.
+// AppendString appends a raw SQL string. It is not escaped, so never pass
+// user input here: use AppendValue or AppendIdent instead.
 func (q *Query) AppendString(str string) {
 	q.stmt = append(q.stmt, str...)
 }
@@ -82,21 +98,83 @@ func (q *Query) AppendInt(n int64) {
 	q.stmt = strconv.AppendInt(q.stmt, n, 10)
 }
 
-// AppendValue appends an argument value.
+// AppendValue appends an argument value as a placeholder, e.g. $1.
 func (q *Query) AppendValue(value any) {
-	q.appendPlacholder()
+	q.stmt = q.Dialect.appendPlaceholder(q.stmt, len(q.args)+1)
 	q.args = append(q.args, value)
 }
 
-func (q *Query) appendPlacholder() {
-	switch q.Placeholder {
-	case Question:
-		q.AppendByte('?')
-	case Colon:
-		q.AppendByte(':')
-		q.AppendInt(int64(len(q.args)) + 1)
-	default:
-		q.AppendByte('$')
-		q.AppendInt(int64(len(q.args)) + 1)
+// AppendValues appends a comma-separated list of argument values, e.g.
+// $1, $2, $3, for IN (...) and VALUES (...) lists. It appends nothing when
+// there are no values; note that IN () is not valid SQL.
+func (q *Query) AppendValues(values ...any) {
+	for i, v := range values {
+		if i > 0 {
+			q.AppendString(", ")
+		}
+		q.AppendValue(v)
 	}
+}
+
+// AppendParsed parses each text value with p and appends them as a
+// comma-separated list of placeholders, like AppendValues:
+//
+//	err := q.AppendParsed(minisql.Integer, "1", "2") // $1, $2 with int64 args
+//
+// If any value fails to parse, it returns the error and appends nothing.
+func (q *Query) AppendParsed(p Parser, values ...string) error {
+	parsed := make([]any, len(values))
+	for i, s := range values {
+		v, err := p.Parse(s)
+		if err != nil {
+			return err
+		}
+		parsed[i] = v
+	}
+	q.AppendValues(parsed...)
+	return nil
+}
+
+// AppendIdent appends a quoted identifier, such as a table or column name.
+// Several parts are joined with a dot into a qualified name:
+//
+//	q.AppendIdent("users")           // "users"
+//	q.AppendIdent("public", "users") // "public"."users"
+//
+// Quote characters inside a part are escaped, so the result is always a
+// single identifier. Note that quoted identifiers are case-sensitive in
+// Postgres, SQLite and Oracle, and that SQLite reads a "name" that matches
+// no column as a string literal, so a typo there gives no error.
+func (q *Query) AppendIdent(parts ...string) {
+	for i, part := range parts {
+		if i > 0 {
+			q.AppendByte('.')
+		}
+		q.appendQuoted(part)
+	}
+}
+
+// AppendColumns appends a comma-separated list of quoted identifiers, e.g.
+// "id", "name", "email".
+func (q *Query) AppendColumns(names ...string) {
+	for i, name := range names {
+		if i > 0 {
+			q.AppendString(", ")
+		}
+		q.appendQuoted(name)
+	}
+}
+
+// appendQuoted wraps name in the dialect's quote character and escapes the
+// quote character inside it by doubling it, e.g. a"b becomes "a""b".
+func (q *Query) appendQuoted(name string) {
+	quote := q.Dialect.identQuote()
+	q.AppendByte(quote)
+	for i := range len(name) {
+		if name[i] == quote {
+			q.AppendByte(quote)
+		}
+		q.AppendByte(name[i])
+	}
+	q.AppendByte(quote)
 }

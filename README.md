@@ -13,7 +13,9 @@ func GetUserName(ctx context.Context, db *sql.DB, userID int64) (string, error) 
   query := minisql.Pooled()
   defer minisql.Release(query)
 
-  query.AppendString(`SELECT user.name FROM users WHERE id = `)
+  query.AppendString(`SELECT `)
+  query.AppendColumns("name")
+  query.AppendString(` FROM users WHERE id = `)
   query.AppendValue(userID)
 
   var name string
