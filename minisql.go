@@ -3,6 +3,11 @@
 // A Query collects raw SQL and arguments. Values never go into the SQL text:
 // each one is added to the argument list and replaced by a placeholder in
 // the format of the chosen Dialect.
+//
+// The package only handles what differs between databases or is easy to get
+// wrong: placeholders, identifier quoting, list separators and turning text
+// input into typed values. It never writes SQL keywords or clauses; a helper
+// that only saves the caller one AppendString does not belong here.
 package minisql
 
 import (
